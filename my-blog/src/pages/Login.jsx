@@ -139,7 +139,7 @@ const Login = () => {
           <h1 className="login-title">ShareLog Tech Auth</h1>
           <p className="login-subtitle">
             {mode === 'login'
-              ? '로그인하여 나만의 테크 로그를 안전하게 동기화하세요.'
+              ? '로그인하여 나의 일상을 작성하고 모두와 공유해보세요.'
               : '새로운 테크 계정을 생성하고 ShareLog의 멤버가 되어보세요.'}
           </p>
         </header>
