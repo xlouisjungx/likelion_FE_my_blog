@@ -20,8 +20,8 @@
 
 ## 🏗 서비스 아키텍처 / Service Architecture
 
-본 서비스는 현대적인 서버리스 아키텍처를 기반으로 구축되었습니다.
-This service is built based on a modern serverless architecture.
+- 본 서비스는 현대적인 서버리스 아키텍처를 기반으로 구축되었습니다.
+- This service is built based on a modern serverless architecture.
 
 ```mermaid
 graph LR
