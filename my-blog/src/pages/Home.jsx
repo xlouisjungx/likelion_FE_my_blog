@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import '../css/Home.css';
 
 const MODAL_ANIMATION_MS = 520;
+const AVAILABLE_EMOJIS = ['👍', '❤️', '🔥', '👏', '😮', '🎉'];
 
 const Home = () => {
   const navigate = useNavigate();
@@ -15,6 +16,31 @@ const Home = () => {
 
   const [sortBy, setSortBy] = useState('latest');
   const [viewType, setViewType] = useState('rect');
+
+  const [activePopoverId, setActivePopoverId] = useState(null);
+
+  // 💡 현재 로그인된 사용자 이메일 상태
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
+
+  // 💡 현재 로그인된 유저 이메일 가져오기
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUserEmail(user?.email ?? null);
+    };
+    fetchUser();
+
+    // 로그인/로그아웃 시 실시간 반영
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // 💡 실시간 이동 전선 회로 배경 이펙트 스크립트
   useEffect(() => {
@@ -30,7 +56,6 @@ const Home = () => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // 전선(라인) 객체 생성기
     const createLine = () => {
       const isHorizontal = Math.random() > 0.5;
       return {
@@ -46,7 +71,6 @@ const Home = () => {
             : canvas.height,
         length: Math.random() * 120 + 60,
         speed: Math.random() * 1.5 + 0.8,
-        // 기판 회로의 각도(0, 90, 180, 270도 표현)
         dirX: isHorizontal ? (Math.random() > 0.5 ? 1 : -1) : 0,
         dirY: isHorizontal ? 0 : Math.random() > 0.5 ? 1 : -1,
         opacity: Math.random() * 0.4 + 0.1,
@@ -62,12 +86,10 @@ const Home = () => {
       lines.forEach((line, index) => {
         ctx.beginPath();
         ctx.lineWidth = line.width;
-        // 네온 글로우 스타일 주입
         ctx.strokeStyle = `rgba(45, 212, 191, ${line.opacity})`;
         ctx.shadowBlur = 4;
         ctx.shadowColor = 'rgba(45, 212, 191, 0.6)';
 
-        // 라인 그리기
         ctx.moveTo(line.x, line.y);
         ctx.lineTo(
           line.x - line.dirX * line.length,
@@ -75,18 +97,15 @@ const Home = () => {
         );
         ctx.stroke();
 
-        // 좌표 이동 업데이트
         line.x += line.dirX * line.speed;
         line.y += line.dirY * line.speed;
 
-        // 가끔씩 회로기판처럼 90도로 꺾이는 이펙트 연출
         if (Math.random() < 0.003) {
           const temp = line.dirX;
           line.dirX = line.dirY;
           line.dirY = temp;
         }
 
-        // 화면 밖으로 이탈하면 재생성
         if (
           line.x < -150 ||
           line.x > canvas.width + 150 ||
@@ -97,7 +116,6 @@ const Home = () => {
         }
       });
 
-      // 잔상 그림자 초기화 (메인 UI 렌더링 간섭 방지)
       ctx.shadowBlur = 0;
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -110,11 +128,18 @@ const Home = () => {
     };
   }, []);
 
+  // 외부 클릭 시 이모지 팝오버 닫기
+  useEffect(() => {
+    const handleOutsideClick = () => setActivePopoverId(null);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
   const fetchPosts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, title, content, tag, writer, created_at')
+        .select('id, title, content, tag, writer, created_at, emotion')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -128,6 +153,63 @@ const Home = () => {
       setLoading(false);
     }
   }, []);
+
+  const handleEmotionClick = async (e, postId, emoji) => {
+    e.stopPropagation();
+
+    const targetPost = posts.find((p) => p.id === postId);
+    if (!targetPost) return;
+
+    let currentEmotion = {};
+    if (targetPost.emotion) {
+      if (typeof targetPost.emotion === 'string') {
+        try {
+          currentEmotion = JSON.parse(targetPost.emotion);
+        } catch (err) {
+          currentEmotion = {};
+        }
+      } else {
+        currentEmotion = { ...targetPost.emotion };
+      }
+    }
+
+    const currentCount = currentEmotion[emoji] || 0;
+
+    if (currentCount > 0) {
+      const nextCount = currentCount - 1;
+      if (nextCount <= 0) {
+        delete currentEmotion[emoji];
+      } else {
+        currentEmotion[emoji] = nextCount;
+      }
+    } else {
+      currentEmotion[emoji] = 1;
+    }
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, emotion: currentEmotion } : p,
+      ),
+    );
+    if (selectedPost && selectedPost.id === postId) {
+      setSelectedPost((prev) => ({ ...prev, emotion: currentEmotion }));
+    }
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ emotion: currentEmotion })
+        .eq('id', postId);
+
+      if (error) {
+        console.error('이모지 카운트 업데이트 실패:', error.message);
+        fetchPosts();
+      }
+    } catch (err) {
+      console.error('이모지 통신 에러:', err);
+      fetchPosts();
+    }
+  };
 
   const openModal = useCallback((post) => {
     setSelectedPost(post);
@@ -215,9 +297,25 @@ const Home = () => {
     }
   };
 
+  const renderEmotionObject = (emotionData) => {
+    if (!emotionData) return {};
+    if (typeof emotionData === 'string') {
+      try {
+        return JSON.parse(emotionData);
+      } catch (err) {
+        return {};
+      }
+    }
+    return emotionData;
+  };
+
+  // 💡 현재 로그인 유저가 해당 게시글의 작성자인지 확인
+  const isOwner = selectedPost
+    ? currentUserEmail && selectedPost.writer === currentUserEmail
+    : false;
+
   return (
     <>
-      {/* 💡 데이터 로딩 여부와 관계없이 무조건 최초 구동 */}
       <canvas ref={canvasRef} className="tech-bg-canvas" />
 
       <div className="home-container">
@@ -330,53 +428,138 @@ const Home = () => {
                     : 'posts-feed'
                 }
               >
-                {processedPosts.map((post) => (
-                  <article
-                    key={post.id}
-                    onClick={() => openModal(post)}
-                    className={`post-card backdrop-blur-md ${viewType === 'square' ? '!mb-0 aspect-square flex flex-col justify-between' : ''}`}
-                  >
-                    <div className="post-card-body h-full flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center text-xs text-gray-400 mb-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                          {post.writer && (
-                            <span className="font-bold text-teal-300 mr-1.5 shrink-0">
-                              {post.writer}
-                            </span>
-                          )}
-                          {post.writer && post.tag && (
+                {processedPosts.map((post) => {
+                  const emotionMap = renderEmotionObject(post.emotion);
+                  return (
+                    <article
+                      key={post.id}
+                      onClick={() => openModal(post)}
+                      className={`post-card backdrop-blur-md ${viewType === 'square' ? '!mb-0 aspect-square flex flex-col justify-between' : ''}`}
+                    >
+                      <div className="post-card-body h-full flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center text-xs text-gray-400 mb-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                            {post.writer && (
+                              <span className="font-bold text-teal-300 mr-1.5 shrink-0">
+                                {post.writer}
+                              </span>
+                            )}
+                            {post.writer && post.tag && (
+                              <span className="text-white/20 mr-1.5 shrink-0">
+                                ·
+                              </span>
+                            )}
+                            {post.tag && (
+                              <span className="text-teal-400/90 font-medium mr-1.5 shrink-0">
+                                #{post.tag}
+                              </span>
+                            )}
                             <span className="text-white/20 mr-1.5 shrink-0">
                               ·
                             </span>
-                          )}
-                          {post.tag && (
-                            <span className="text-teal-400/90 font-medium mr-1.5 shrink-0">
-                              #{post.tag}
+                            <span className="post-date shrink-0">
+                              {formatDate(post.created_at)}
                             </span>
-                          )}
-                          <span className="text-white/20 mr-1.5 shrink-0">
-                            ·
-                          </span>
-                          <span className="post-date shrink-0">
-                            {formatDate(post.created_at)}
-                          </span>
+                          </div>
+
+                          <h2
+                            className={`post-card-title ${viewType === 'square' ? 'text-base line-clamp-2' : ''}`}
+                          >
+                            {post.title}
+                          </h2>
+                          <p
+                            className={`post-card-preview ${viewType === 'square' ? 'line-clamp-2 mt-2 text-xs' : ''}`}
+                          >
+                            {post.content}
+                          </p>
                         </div>
 
-                        <h2
-                          className={`post-card-title ${viewType === 'square' ? 'text-base line-clamp-2' : ''}`}
-                        >
-                          {post.title}
-                        </h2>
-                      </div>
+                        <div className="emotion-container mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleEmotionClick(e, post.id, '👍')
+                            }
+                            className={`emotion-btn ${emotionMap['👍'] ? 'active' : ''}`}
+                          >
+                            <span>👍</span>
+                            <span className="count-num">
+                              {emotionMap['👍'] || 0}
+                            </span>
+                          </button>
 
-                      <p
-                        className={`post-card-preview ${viewType === 'square' ? 'line-clamp-3 mt-2 text-xs flex-1' : ''}`}
-                      >
-                        {post.content}
-                      </p>
-                    </div>
-                  </article>
-                ))}
+                          {Object.entries(emotionMap)
+                            .filter(
+                              ([emoji, count]) => emoji !== '👍' && count > 0,
+                            )
+                            .map(([emoji, count]) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={(e) =>
+                                  handleEmotionClick(e, post.id, emoji)
+                                }
+                                className="emotion-btn active"
+                              >
+                                <span>{emoji}</span>
+                                <span className="count-num">{count}</span>
+                              </button>
+                            ))}
+
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePopoverId(
+                                  activePopoverId === post.id ? null : post.id,
+                                );
+                              }}
+                              className="emotion-add-btn"
+                              title="리액션 추가"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 4v16m8-8H4"
+                                />
+                              </svg>
+                            </button>
+
+                            {activePopoverId === post.id && (
+                              <div
+                                className="emotion-popover"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {AVAILABLE_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={(e) => {
+                                      handleEmotionClick(e, post.id, emoji);
+                                      setActivePopoverId(null);
+                                    }}
+                                    className="popover-emoji-item"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </>
@@ -393,41 +576,46 @@ const Home = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleDeletePost(selectedPost.id)}
-                className="cursor-pointer rounded-full border border-white/10 bg-white/10 p-2.5 text-rose-400 transition-all duration-200 hover:border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-300"
-                aria-label="삭제"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
+              {/* 💡 isOwner가 true일 때만 삭제/수정 버튼 렌더링 */}
+              {isOwner && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePost(selectedPost.id)}
+                    className="cursor-pointer rounded-full border border-white/10 bg-white/10 p-2.5 text-rose-400 transition-all duration-200 hover:border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-300"
+                    aria-label="삭제"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => handleEditNavigate(selectedPost)}
-                className="cursor-pointer rounded-full border border-white/10 bg-white/10 p-2.5 text-teal-400 transition-all duration-200 hover:border-teal-500/40 hover:bg-teal-500/20 hover:text-teal-300"
-                aria-label="수정"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                </svg>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditNavigate(selectedPost)}
+                    className="cursor-pointer rounded-full border border-white/10 bg-white/10 p-2.5 text-teal-400 transition-all duration-200 hover:border-teal-500/40 hover:bg-teal-500/20 hover:text-teal-300"
+                    aria-label="수정"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                </>
+              )}
 
               <button
                 type="button"
@@ -471,7 +659,37 @@ const Home = () => {
             </div>
 
             <h2 className="modal-title pr-32">{selectedPost.title}</h2>
-            <p className="modal-content">{selectedPost.content}</p>
+            <p className="modal-content mb-6">{selectedPost.content}</p>
+
+            <div className="emotion-container pt-4 border-t border-white/10 flex flex-wrap items-center gap-1.5">
+              <button
+                key="modal-thumb"
+                type="button"
+                onClick={(e) => handleEmotionClick(e, selectedPost.id, '👍')}
+                className={`emotion-btn ${renderEmotionObject(selectedPost.emotion)['👍'] ? 'active' : ''}`}
+              >
+                <span>👍</span>
+                <span className="count-num">
+                  {renderEmotionObject(selectedPost.emotion)['👍'] || 0}
+                </span>
+              </button>
+
+              {Object.entries(renderEmotionObject(selectedPost.emotion))
+                .filter(([emoji, count]) => emoji !== '👍' && count > 0)
+                .map(([emoji, count]) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={(e) =>
+                      handleEmotionClick(e, selectedPost.id, emoji)
+                    }
+                    className="emotion-btn active"
+                  >
+                    <span>{emoji}</span>
+                    <span className="count-num">{count}</span>
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
       )}

@@ -11,6 +11,8 @@ const WriteBlog = () => {
   const editPost = location.state?.post || null;
   const isEditMode = !!editPost;
 
+  // 상태 관리
+  const [currentUser, setCurrentUser] = useState(null);
   const [writer, setWriter] = useState(editPost ? editPost.writer || '' : '');
   const [title, setTitle] = useState(editPost ? editPost.title : '');
   const [content, setContent] = useState(editPost ? editPost.content : '');
@@ -18,7 +20,22 @@ const WriteBlog = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 💡 글쓰기 페이지 내에도 동일 콘셉트 배경 일관 적용
+  // 1. 현재 로그인된 유저 정보 가져오기
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUser(user);
+        // 이미 로그인 되어있다면 기존 닉네임 입력란 대신 이메일로 자동 설정
+        if (!editPost) setWriter(user.email);
+      }
+    };
+    getUser();
+  }, [editPost]);
+
+  // 배경 애니메이션 이펙트
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -94,7 +111,6 @@ const WriteBlog = () => {
     };
 
     animate();
-
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationFrameId);
@@ -113,40 +129,27 @@ const WriteBlog = () => {
     setSubmitting(true);
 
     try {
+      // 2. 작성자 데이터 결정 로직 (로그인 유저 우선)
+      const postData = {
+        writer: currentUser ? currentUser.email : writer.trim() || '익명',
+        title: title.trim(),
+        content: content.trim(),
+        tag: tag.trim() || null,
+      };
+
       if (isEditMode) {
         const { error } = await supabase
           .from('posts')
-          .update({
-            writer: writer.trim() || null,
-            title: title.trim(),
-            content: content.trim(),
-            tag: tag.trim() || null,
-          })
+          .update(postData)
           .eq('id', editPost.id);
-
-        if (error) {
-          console.error('게시글 수정 실패:', error.message);
-          setErrorMsg(`수정에 실패했습니다: ${error.message}`);
-        } else {
-          navigate('/');
-        }
+        if (error) throw error;
       } else {
-        const { error } = await supabase.from('posts').insert({
-          writer: writer.trim() || null,
-          title: title.trim(),
-          content: content.trim(),
-          tag: tag.trim() || null,
-        });
-
-        if (error) {
-          console.error('게시글 저장 실패:', error.message);
-          setErrorMsg(`저장에 실패했습니다: ${error.message}`);
-        } else {
-          navigate('/');
-        }
+        const { error } = await supabase.from('posts').insert(postData);
+        if (error) throw error;
       }
+      navigate('/');
     } catch (err) {
-      console.error('게시글 처리 중 예외 발생:', err);
+      console.error('게시글 처리 실패:', err);
       setErrorMsg('처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
@@ -155,7 +158,6 @@ const WriteBlog = () => {
 
   return (
     <>
-      {/* 💡 글쓰기 전용 백그라운드 캔버스 배치 */}
       <canvas ref={canvasRef} className="tech-bg-canvas" />
 
       <div className="write-container">
@@ -167,26 +169,29 @@ const WriteBlog = () => {
             {isEditMode ? '게시글 수정' : '새 글 작성'}
           </h1>
           <p className="write-subtitle">
-            {isEditMode
-              ? '수정된 내용은 데이터베이스에 실시간 업데이트됩니다.'
-              : '작성한 글은 Supabase posts 테이블에 저장됩니다.'}
+            {currentUser
+              ? `계정: ${currentUser.email}로 작성 중`
+              : '비로그인 상태입니다. (익명으로 작성됩니다)'}
           </p>
         </header>
 
         <form onSubmit={handleSubmit} className="write-form backdrop-blur-md">
-          <div>
-            <label htmlFor="writer" className="form-label">
-              작성자 <span className="text-gray-500">(선택)</span>
-            </label>
-            <input
-              id="writer"
-              type="text"
-              value={writer}
-              onChange={(e) => setWriter(e.target.value)}
-              placeholder="이름 혹은 닉네임을 입력하세요"
-              className="form-input"
-            />
-          </div>
+          {/* 3. 로그인하지 않은 경우에만 작성자 수동 입력창 노출 */}
+          {!currentUser && (
+            <div>
+              <label htmlFor="writer" className="form-label">
+                작성자 <span className="text-gray-500">(선택)</span>
+              </label>
+              <input
+                id="writer"
+                type="text"
+                value={writer}
+                onChange={(e) => setWriter(e.target.value)}
+                placeholder="이름 혹은 닉네임을 입력하세요"
+                className="form-input"
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor="title" className="form-label">
@@ -197,8 +202,9 @@ const WriteBlog = () => {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="게시글 제목을 입력하세요"
+              placeholder="[닉네임] 게시글 제목을 입력하세요"
               className="form-input"
+              required
             />
           </div>
 
@@ -213,6 +219,7 @@ const WriteBlog = () => {
               placeholder="게시글 내용을 입력하세요"
               rows={10}
               className="form-input form-textarea"
+              required
             />
           </div>
 

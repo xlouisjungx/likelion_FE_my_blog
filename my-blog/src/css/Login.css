@@ -1,0 +1,187 @@
+/* 글로벌 캔버스 배경 설정 (기본 Home.css와 연동될 수 있도록 포지셔닝 고정) */
+.tech-bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background-color: #0b1329; /* 딥한 다크 테크 블루 */
+  pointer-events: none;
+}
+
+/* 컨테이너 및 헤더 스타일 */
+.login-container {
+  position: relative;
+  z-index: 10;
+  max-width: 420px; /* 조금 더 콤팩트하고 안정감 있는 폼 너비로 세밀 조정 */
+  margin: 0 auto;
+  padding: 100px 20px;
+  color: #ffffff;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.login-header {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.login-header .back-link {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: #2dd4bf; /* 테일 컬러 */
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.2s;
+}
+
+.login-header .back-link:hover {
+  color: #99f6e4;
+}
+
+.login-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+  background: linear-gradient(to right, #ffffff, #2dd4bf);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.login-subtitle {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+/* 폼 스타일 레이아웃 (Glassmorphism 적용 및 세로 정렬 교정) */
+.login-form {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column; /* 💡 flex-col: column; 오타를 올바른 표준 CSS 속성으로 교정 */
+  gap: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* 각 입력 필드 그룹 정렬 밸런스 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.form-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box; /* 💡 패딩이 늘어나도 전체 가로폭 너비를 침범하지 않도록 제어 */
+}
+
+.form-input:focus {
+  border-color: #2dd4bf;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
+}
+
+/* 상태 알림 메시지 너비 동기화 */
+.error-message {
+  font-size: 0.85rem;
+  color: #f43f5e; /* Rose 500 */
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.success-message {
+  font-size: 0.85rem;
+  color: #34d399; /* Emerald 400 */
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 제출 버튼 */
+.submit-btn {
+  width: 100%;
+  background: #2dd4bf;
+  color: #0f172a;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #14b8a6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 모드 토글 하단 링크 텍스트 */
+.mode-toggle-text {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.mode-toggle-text button {
+  background: none;
+  border: none;
+  color: #2dd4bf;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.mode-toggle-text button:hover {
+  color: #99f6e4;
+}
+
+.login-header .back-link {
+  position: relative;
+  z-index: 100; /* 캔버스 및 다른 요소보다 위에 배치 */
+  pointer-events: auto; /* 캔버스의 none을 무시하고 클릭 가능하게 설정 */
+  cursor: pointer;
+}
