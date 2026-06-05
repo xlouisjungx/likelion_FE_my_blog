@@ -24,10 +24,12 @@
   <tr>
     <td><img src="/project-image/image.png" width="200" /></td>
     <td><img src="/project-image/image-1.png" width="200" /></td>
-    <td><img src="/project-image/image-2.png" width="200" /></td>
   </tr>
   <tr>
+    <td><img src="/project-image/image-2.png" width="200" /></td>
     <td><img src="/project-image/image-3.png" width="200" /></td>
+  </tr>
+  <tr>
     <td><img src="/project-image/image-4.png" width="200" /></td>
     <td><img src="/project-image/image-5.png" width="200" /></td>
   </tr>
