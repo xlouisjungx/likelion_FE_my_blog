@@ -18,6 +18,26 @@
 - [한글] 이모지로 반응 남기기 / Emoji Reactions:\*\* 다른 사용자의 글에 이모지를 통해 간단하고 따뜻한 공감을 표현할 수 있습니다.
 - [English] You can express your support and empathy for others' posts using simple and warm emojis.
 
+## 🏗 서비스 아키텍처 / Service Architecture
+
+본 서비스는 현대적인 서버리스 아키텍처를 기반으로 구축되었습니다.
+This service is built based on a modern serverless architecture.
+
+```mermaid
+graph LR
+    User((User)) -->|Deploy / Access| Vercel[Vercel]
+    Vercel --> React[React + Vite]
+    React <-->|API / Auth / DB| Supabase[(Supabase)]
+
+    subgraph Frontend
+    React
+    end
+
+    subgraph Backend
+    Supabase
+    end
+```
+
 ## 📸 프로젝트 스크린샷 / Project Screenshots
 
 <table>
