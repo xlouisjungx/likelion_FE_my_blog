@@ -1,0 +1,27 @@
+@reference "./index.css";
+
+/* 전체 스크린 배경 및 레이아웃 */
+.app-layout {
+  /* 💡 bg-[#121212]를 bg-transparent로 변경해 배경 오픈 */
+  @apply min-h-screen bg-transparent relative;
+}
+
+/* 상단 내비게이션 바 (GNB) */
+.nav-bar {
+  /* 💡 상단 헤더 뒤로도 전선이 부드럽게 흘러가도록 반투명화 적용 */
+  @apply border-b border-white/5 bg-black/20 backdrop-blur-md relative z-20;
+}
+
+.nav-container {
+  @apply mx-auto flex max-w-3xl items-center justify-between px-4 py-4;
+}
+
+/* 로고 타이틀 링크 (Techlog) */
+.nav-logo {
+  @apply text-lg font-bold tracking-tight text-white transition-colors hover:text-teal-400;
+}
+
+/* 글쓰기 버튼 링크 */
+.nav-write-btn {
+  @apply rounded-lg bg-teal-600/20 px-4 py-1.5 text-sm font-medium text-teal-400 ring-1 ring-teal-500/30 transition-colors hover:bg-teal-600/30;
+}

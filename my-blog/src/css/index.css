@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+/* 💡 body의 불투명 배경색 제거 */
+html,
+body {
+  margin: 0;
+  background-color: transparent !important;
+  color: #e5e5e5;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+html {
+  background-color: #0b0b0b;
+}
+
+/* iOS Liquid Glass 스타일 모달 애니메이션 */
+.liquid-backdrop {
+  transition: opacity 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.liquid-backdrop[data-visible='false'] {
+  opacity: 0;
+}
+
+.liquid-backdrop[data-visible='true'] {
+  opacity: 1;
+}
+
+.liquid-panel {
+  transition:
+    opacity 0.52s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.52s cubic-bezier(0.32, 0.72, 0, 1),
+    filter 0.52s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform, opacity, filter;
+}
+
+.liquid-panel[data-visible='false'] {
+  opacity: 0;
+  transform: scale(0.86) translateY(28px);
+  filter: blur(12px);
+}
+
+.liquid-panel[data-visible='true'] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  filter: blur(0);
+}
+
+.liquid-close-btn {
+  transition:
+    opacity 0.38s cubic-bezier(0.32, 0.72, 0, 1) 0.12s,
+    transform 0.38s cubic-bezier(0.32, 0.72, 0, 1) 0.12s,
+    background-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.liquid-close-btn[data-visible='false'] {
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+
+.liquid-close-btn[data-visible='true'] {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.liquid-close-btn[data-visible='true']:hover {
+  transform: scale(1.12) rotate(0deg);
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(45, 212, 191, 0.25);
+}
+
+.liquid-close-btn[data-visible='true']:active {
+  transform: scale(0.9) rotate(0deg);
+  transition-duration: 0.12s;
+}

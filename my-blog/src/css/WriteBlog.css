@@ -1,0 +1,93 @@
+@reference "./index.css";
+
+/* 💡 [수정] 글로벌 레이어 투명화: 글쓰기 화면에서도 배경 캔버스가 잘 보이도록 동일하게 뚫어줍니다. */
+html,
+body,
+#root {
+  background-color: transparent !important;
+}
+
+/* 💡 글쓰기 화면에서도 배경 고정 클래스 매칭되도록 정의 */
+.tech-bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #0b0b0b;
+}
+
+@keyframes cyberPanelGlow {
+  0% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 15px rgba(20, 184, 166, 0.02);
+  }
+  50% {
+    border-color: rgba(45, 212, 191, 0.2);
+    box-shadow: inset 0 0 25px rgba(20, 184, 166, 0.08);
+  }
+  100% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 15px rgba(20, 184, 166, 0.02);
+  }
+}
+
+@keyframes submitPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(45, 212, 191, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(45, 212, 191, 0.45);
+  }
+}
+
+.write-container {
+  @apply mx-auto max-w-2xl px-4 py-8 relative z-10;
+}
+
+.write-header {
+  @apply mb-8;
+}
+
+.back-link {
+  @apply mb-4 inline-flex items-center text-sm text-gray-400;
+}
+
+.write-title {
+  @apply text-2xl font-bold text-white;
+}
+
+.write-subtitle {
+  @apply mt-1 text-sm text-gray-400;
+}
+
+.write-form {
+  /* 불투명도를 살짝 조절(bg-black/50)하고 backdrop-blur를 추가하여 전선이 멋지게 깔리도록 세팅 */
+  @apply flex flex-col gap-5 rounded-xl border bg-black/50 p-6 backdrop-blur-md;
+  animation: cyberPanelGlow 8s infinite ease-in-out;
+}
+
+.form-label {
+  @apply mb-1.5 block text-sm font-medium text-teal-400/90;
+}
+
+.form-input {
+  @apply w-full rounded-lg border border-teal-500/20 bg-[#161616] px-4 py-2.5 text-white placeholder-gray-600 outline-none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.form-textarea {
+  @apply resize-y;
+}
+
+.error-message {
+  @apply rounded-lg bg-red-500/10 px-4 py-2.5 text-sm text-red-400 border border-red-500/20 animate-pulse;
+}
+
+.submit-btn {
+  @apply rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50;
+  animation: submitPulse 3s infinite ease-in-out;
+}
