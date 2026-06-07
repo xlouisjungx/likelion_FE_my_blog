@@ -12,10 +12,10 @@
 
 ## ✨ 주요 기능 / Key Features
 
-- [한글] 일기 작성하기 / Write a Diary:\*\* 자신의 속마음을 자유롭게 기록할 수 있습니다.
+- [한글] 일기 작성하기 / Write a Diary: 자신의 속마음을 자유롭게 기록할 수 있습니다.
 - [English] You can freely record your inner thoughts and feelings.
 
-- [한글] 이모지로 반응 남기기 / Emoji Reactions:\*\* 다른 사용자의 글에 이모지를 통해 간단하고 따뜻한 공감을 표현할 수 있습니다.
+- [한글] 이모지로 반응 남기기 / Emoji Reactions: 다른 사용자의 글에 이모지를 통해 간단하고 따뜻한 공감을 표현할 수 있습니다.
 - [English] You can express your support and empathy for others' posts using simple and warm emojis.
 
 ## 🏗 서비스 아키텍처 / Service Architecture
