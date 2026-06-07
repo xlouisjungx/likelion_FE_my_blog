@@ -50,7 +50,16 @@
 
 ```bash
 git clone https://github.com/xlouisjungx/likelion_FE_my_blog.git
+```
+
+```bash
 cd my-blog
+```
+
+```bash
 npm install
+```
+
+```bash
 npm run dev
 ```
