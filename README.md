@@ -20,23 +20,10 @@
 
 ## 🏗 서비스 아키텍처 / Service Architecture
 
-- 본 서비스는 현대적인 서버리스 아키텍처를 기반으로 구축되었습니다.
-- This service is built based on a modern serverless architecture.
+- [한글] 본 서비스는 현대적인 서버리스 아키텍처를 기반으로 구축되었으며, Cursor와 Google Gemini AI를 적극 활용하여 효율적으로 페어 프로그래밍 및 코드 생성을 진행했습니다.
+- [English] This service is built based on a modern serverless architecture and was efficiently developed through AI-pair programming and code generation using Cursor and Google Gemini AI.
 
-```mermaid
-graph LR
-    User((User)) -->|Deploy / Access| Vercel[Vercel]
-    Vercel --> React[React + Vite]
-    React <-->|API / Auth / DB| Supabase[(Supabase)]
-
-    subgraph Frontend
-    React
-    end
-
-    subgraph Backend
-    Supabase
-    end
-```
+![alt text](/project-image/image-6.png)
 
 ## 📸 프로젝트 스크린샷 / Project Screenshots
 
