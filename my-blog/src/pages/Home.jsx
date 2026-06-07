@@ -6,6 +6,50 @@ import '../css/Home.css';
 const MODAL_ANIMATION_MS = 520;
 const AVAILABLE_EMOJIS = ['👍', '❤️', '🔥', '👏', '😮', '🎉'];
 
+// ─────────────────────────────────────────────
+// 헬퍼: emotion 데이터를 { emoji: { count, users[] } } 형태로 정규화
+// 기존 { emoji: number } 구조도 마이그레이션 처리
+// ─────────────────────────────────────────────
+const normalizeEmotion = (emotionData) => {
+  if (!emotionData) return {};
+
+  let parsed = emotionData;
+  if (typeof emotionData === 'string') {
+    try {
+      parsed = JSON.parse(emotionData);
+    } catch {
+      return {};
+    }
+  }
+
+  const normalized = {};
+  for (const [emoji, value] of Object.entries(parsed)) {
+    if (typeof value === 'number') {
+      // 구버전 데이터: 숫자만 있는 경우 → users 배열 없이 count만 보존
+      normalized[emoji] = { count: value, users: [] };
+    } else if (value && typeof value === 'object') {
+      normalized[emoji] = {
+        count: value.count ?? 0,
+        users: Array.isArray(value.users) ? value.users : [],
+      };
+    }
+  }
+  return normalized;
+};
+
+// ─────────────────────────────────────────────
+// 헬퍼: count가 0 이하인 emoji 항목 제거
+// ─────────────────────────────────────────────
+const cleanEmotion = (emotionMap) => {
+  const cleaned = {};
+  for (const [emoji, value] of Object.entries(emotionMap)) {
+    if (value.count > 0) {
+      cleaned[emoji] = value;
+    }
+  }
+  return cleaned;
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
@@ -19,10 +63,8 @@ const Home = () => {
 
   const [activePopoverId, setActivePopoverId] = useState(null);
 
-  // 💡 현재 로그인된 사용자 이메일 상태
   const [currentUserEmail, setCurrentUserEmail] = useState(null);
 
-  // 💡 현재 로그인된 유저 이메일 가져오기
   useEffect(() => {
     const fetchUser = async () => {
       const {
@@ -32,7 +74,6 @@ const Home = () => {
     };
     fetchUser();
 
-    // 로그인/로그아웃 시 실시간 반영
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -42,7 +83,7 @@ const Home = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 💡 실시간 이동 전선 회로 배경 이펙트 스크립트
+  // 실시간 이동 전선 회로 배경 이펙트
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -128,7 +169,6 @@ const Home = () => {
     };
   }, []);
 
-  // 외부 클릭 시 이모지 팝오버 닫기
   useEffect(() => {
     const handleOutsideClick = () => setActivePopoverId(null);
     window.addEventListener('click', handleOutsideClick);
@@ -154,51 +194,59 @@ const Home = () => {
     }
   }, []);
 
+  // ─────────────────────────────────────────────
+  // 핵심 수정: 사용자별 토글 로직
+  // - 로그인 사용자: users 배열로 토글 (내가 누른 것만 취소)
+  // - 비로그인 사용자: 로그인 유도 (선택사항, 현재는 그냥 리턴)
+  // ─────────────────────────────────────────────
   const handleEmotionClick = async (e, postId, emoji) => {
     e.stopPropagation();
+
+    if (!currentUserEmail) {
+      alert('로그인 후 이모지를 남길 수 있습니다.');
+      return;
+    }
 
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
 
-    let currentEmotion = {};
-    if (targetPost.emotion) {
-      if (typeof targetPost.emotion === 'string') {
-        try {
-          currentEmotion = JSON.parse(targetPost.emotion);
-        } catch (err) {
-          currentEmotion = {};
-        }
-      } else {
-        currentEmotion = { ...targetPost.emotion };
-      }
+    const currentEmotion = normalizeEmotion(targetPost.emotion);
+
+    // 해당 emoji 항목이 없으면 초기화
+    if (!currentEmotion[emoji]) {
+      currentEmotion[emoji] = { count: 0, users: [] };
     }
 
-    const currentCount = currentEmotion[emoji] || 0;
+    const entry = { ...currentEmotion[emoji] };
+    const alreadyReacted = entry.users.includes(currentUserEmail);
 
-    if (currentCount > 0) {
-      const nextCount = currentCount - 1;
-      if (nextCount <= 0) {
-        delete currentEmotion[emoji];
-      } else {
-        currentEmotion[emoji] = nextCount;
-      }
+    if (alreadyReacted) {
+      // 내가 이미 눌렀으면 → 취소 (count -1, users에서 제거)
+      entry.users = entry.users.filter((u) => u !== currentUserEmail);
+      entry.count = Math.max(0, entry.count - 1);
     } else {
-      currentEmotion[emoji] = 1;
+      // 내가 아직 안 눌렀으면 → 추가 (count +1, users에 추가)
+      entry.users = [...entry.users, currentUserEmail];
+      entry.count = entry.count + 1;
     }
 
+    currentEmotion[emoji] = entry;
+    const updatedEmotion = cleanEmotion(currentEmotion);
+
+    // 낙관적 UI 업데이트
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === postId ? { ...p, emotion: currentEmotion } : p,
+        p.id === postId ? { ...p, emotion: updatedEmotion } : p,
       ),
     );
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost((prev) => ({ ...prev, emotion: currentEmotion }));
+    if (selectedPost?.id === postId) {
+      setSelectedPost((prev) => ({ ...prev, emotion: updatedEmotion }));
     }
 
     try {
       const { error } = await supabase
         .from('posts')
-        .update({ emotion: currentEmotion })
+        .update({ emotion: updatedEmotion })
         .eq('id', postId);
 
       if (error) {
@@ -209,6 +257,27 @@ const Home = () => {
       console.error('이모지 통신 에러:', err);
       fetchPosts();
     }
+  };
+
+  // 현재 사용자가 해당 emoji를 눌렀는지 확인
+  const hasReacted = (emotionData, emoji) => {
+    if (!currentUserEmail) return false;
+    const map = normalizeEmotion(emotionData);
+    return map[emoji]?.users?.includes(currentUserEmail) ?? false;
+  };
+
+  // 이모지별 카운트 반환
+  const getCount = (emotionData, emoji) => {
+    const map = normalizeEmotion(emotionData);
+    return map[emoji]?.count ?? 0;
+  };
+
+  // 카운트가 있는 emoji 목록 반환 (특정 emoji 제외)
+  const getActiveEmojis = (emotionData, excludeEmoji) => {
+    const map = normalizeEmotion(emotionData);
+    return Object.entries(map).filter(
+      ([emoji, value]) => emoji !== excludeEmoji && value.count > 0,
+    );
   };
 
   const openModal = useCallback((post) => {
@@ -297,19 +366,6 @@ const Home = () => {
     }
   };
 
-  const renderEmotionObject = (emotionData) => {
-    if (!emotionData) return {};
-    if (typeof emotionData === 'string') {
-      try {
-        return JSON.parse(emotionData);
-      } catch (err) {
-        return {};
-      }
-    }
-    return emotionData;
-  };
-
-  // 💡 현재 로그인 유저가 해당 게시글의 작성자인지 확인
   const isOwner = selectedPost
     ? currentUserEmail && selectedPost.writer === currentUserEmail
     : false;
@@ -429,7 +485,6 @@ const Home = () => {
                 }
               >
                 {processedPosts.map((post) => {
-                  const emotionMap = renderEmotionObject(post.emotion);
                   return (
                     <article
                       key={post.id}
@@ -475,37 +530,40 @@ const Home = () => {
                         </div>
 
                         <div className="emotion-container mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center gap-1.5">
+                          {/* 👍 고정 버튼 */}
                           <button
                             type="button"
                             onClick={(e) =>
                               handleEmotionClick(e, post.id, '👍')
                             }
-                            className={`emotion-btn ${emotionMap['👍'] ? 'active' : ''}`}
+                            className={`emotion-btn ${hasReacted(post.emotion, '👍') ? 'active' : ''}`}
                           >
                             <span>👍</span>
                             <span className="count-num">
-                              {emotionMap['👍'] || 0}
+                              {getCount(post.emotion, '👍')}
                             </span>
                           </button>
 
-                          {Object.entries(emotionMap)
-                            .filter(
-                              ([emoji, count]) => emoji !== '👍' && count > 0,
-                            )
-                            .map(([emoji, count]) => (
+                          {/* 나머지 활성 이모지 */}
+                          {getActiveEmojis(post.emotion, '👍').map(
+                            ([emoji]) => (
                               <button
                                 key={emoji}
                                 type="button"
                                 onClick={(e) =>
                                   handleEmotionClick(e, post.id, emoji)
                                 }
-                                className="emotion-btn active"
+                                className={`emotion-btn ${hasReacted(post.emotion, emoji) ? 'active' : ''}`}
                               >
                                 <span>{emoji}</span>
-                                <span className="count-num">{count}</span>
+                                <span className="count-num">
+                                  {getCount(post.emotion, emoji)}
+                                </span>
                               </button>
-                            ))}
+                            ),
+                          )}
 
+                          {/* 이모지 추가 버튼 */}
                           <div className="relative">
                             <button
                               type="button"
@@ -576,7 +634,6 @@ const Home = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
-              {/* 💡 isOwner가 true일 때만 삭제/수정 버튼 렌더링 */}
               {isOwner && (
                 <>
                   <button
@@ -662,33 +719,33 @@ const Home = () => {
             <p className="modal-content mb-6">{selectedPost.content}</p>
 
             <div className="emotion-container pt-4 border-t border-white/10 flex flex-wrap items-center gap-1.5">
+              {/* 👍 고정 버튼 */}
               <button
                 key="modal-thumb"
                 type="button"
                 onClick={(e) => handleEmotionClick(e, selectedPost.id, '👍')}
-                className={`emotion-btn ${renderEmotionObject(selectedPost.emotion)['👍'] ? 'active' : ''}`}
+                className={`emotion-btn ${hasReacted(selectedPost.emotion, '👍') ? 'active' : ''}`}
               >
                 <span>👍</span>
                 <span className="count-num">
-                  {renderEmotionObject(selectedPost.emotion)['👍'] || 0}
+                  {getCount(selectedPost.emotion, '👍')}
                 </span>
               </button>
 
-              {Object.entries(renderEmotionObject(selectedPost.emotion))
-                .filter(([emoji, count]) => emoji !== '👍' && count > 0)
-                .map(([emoji, count]) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={(e) =>
-                      handleEmotionClick(e, selectedPost.id, emoji)
-                    }
-                    className="emotion-btn active"
-                  >
-                    <span>{emoji}</span>
-                    <span className="count-num">{count}</span>
-                  </button>
-                ))}
+              {/* 나머지 활성 이모지 */}
+              {getActiveEmojis(selectedPost.emotion, '👍').map(([emoji]) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={(e) => handleEmotionClick(e, selectedPost.id, emoji)}
+                  className={`emotion-btn ${hasReacted(selectedPost.emotion, emoji) ? 'active' : ''}`}
+                >
+                  <span>{emoji}</span>
+                  <span className="count-num">
+                    {getCount(selectedPost.emotion, emoji)}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
