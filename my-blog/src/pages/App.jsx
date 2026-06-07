@@ -1,10 +1,86 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Link, Route, Routes, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Link,
+  Route,
+  Routes,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import Home from './Home';
 import WriteBlog from './WriteBlog';
 import Login from './Login';
 import '../css/App.css';
+
+const PROTECTED_PATHS = ['/', '/write'];
+
+const AppRoutes = ({ user }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!user && PROTECTED_PATHS.includes(location.pathname)) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login', { replace: true });
+  };
+
+  return (
+    <div className="app-layout">
+      <nav className="nav-bar">
+        <div className="w-full flex items-center justify-between px-6 py-4">
+          <Link to="/" className="nav-logo">
+            ShareLog
+          </Link>
+          <div className="flex items-center gap-4">
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="nav-login-btn cursor-pointer"
+              >
+                로그아웃
+              </button>
+            ) : (
+              <Link to="/login" className="nav-login-btn">
+                로그인
+              </Link>
+            )}
+            <Link to="/write" className="nav-write-btn">
+              글쓰기
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <main className="main-content">
+        <Routes>
+          <Route
+            path="/"
+            element={user ? <Home /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/write"
+            element={user ? <WriteBlog /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/login"
+            element={user ? <Navigate to="/" replace /> : <Login />}
+          />
+          <Route
+            path="*"
+            element={<Navigate to={user ? '/' : '/login'} replace />}
+          />
+        </Routes>
+      </main>
+    </div>
+  );
+};
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -54,61 +130,9 @@ const App = () => {
 
   if (loading) return null;
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
-  };
-
   return (
     <BrowserRouter>
-      <div className="app-layout">
-        <nav className="nav-bar">
-          <div className="w-full flex items-center justify-between px-6 py-4">
-            <a href="/" className="nav-logo">
-              ShareLog
-            </a>
-            <div className="flex items-center gap-4">
-              {user ? (
-                <button
-                  onClick={handleLogout}
-                  className="nav-login-btn cursor-pointer"
-                >
-                  로그아웃
-                </button>
-              ) : (
-                <Link to="/login" className="nav-login-btn">
-                  로그인
-                </Link>
-              )}
-              <Link to="/write" className="nav-write-btn">
-                글쓰기
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        <main className="main-content">
-          <Routes>
-            {/* 💡 핵심 수정: 루트 경로(/) 접속 시 로그인 여부에 따라 리다이렉트 */}
-            <Route
-              path="/"
-              element={user ? <Home /> : <Navigate to="/login" />}
-            />
-
-            <Route
-              path="/write"
-              element={user ? <WriteBlog /> : <Navigate to="/login" />}
-            />
-            <Route
-              path="/login"
-              element={user ? <Navigate to="/" /> : <Login />}
-            />
-
-            {/* 홈 외의 주소로 직접 접근 시 안전하게 처리 */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </main>
-      </div>
+      <AppRoutes user={user} />
     </BrowserRouter>
   );
 };
